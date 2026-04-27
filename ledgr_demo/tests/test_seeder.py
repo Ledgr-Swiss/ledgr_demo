@@ -63,3 +63,33 @@ class TestSeederFullRun(FrappeTestCase):
         })
         self.assertGreaterEqual(count, 5)
         self.assertLessEqual(count, 15)
+
+
+class TestSeederBdl(FrappeTestCase):
+    """BDL profile produces expected counts."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # Each test class gets its own DB context — reseed to ensure BDL data is present.
+        run_seed()
+        frappe.db.commit()
+
+    def test_bdl_company_exists(self):
+        self.assertTrue(frappe.db.exists("Company", "Boulangerie du Lac SA"))
+
+    def test_bdl_purchase_invoices(self):
+        count = frappe.db.count("Purchase Invoice", {"company": "Boulangerie du Lac SA"})
+        self.assertGreaterEqual(count, 80)
+
+    def test_bdl_journal_entries_pos_plus_payroll(self):
+        count = frappe.db.count("Journal Entry", {"company": "Boulangerie du Lac SA"})
+        self.assertGreaterEqual(count, 50)
+
+    def test_bdl_gl_balanced(self):
+        result = frappe.db.sql(
+            """SELECT COALESCE(SUM(debit), 0) as d, COALESCE(SUM(credit), 0) as c
+               FROM `tabGL Entry` WHERE company = %s AND is_cancelled = 0""",
+            ("Boulangerie du Lac SA",), as_dict=True,
+        )
+        self.assertAlmostEqual(float(result[0]["d"]), float(result[0]["c"]), places=2)

@@ -103,3 +103,51 @@ class TestFidOperationsGenerator(FrappeTestCase):
         for pi in pi_ops:
             self.assertIn("tva_rate", pi)
             self.assertIn("net_amount", pi)
+
+
+class TestBdlProfileData(FrappeTestCase):
+    def test_suppliers_minimum_count(self):
+        from ledgr_demo.profiles.bakery import SUPPLIERS as BDL_SUPPLIERS
+        self.assertGreaterEqual(len(BDL_SUPPLIERS), 12)
+
+    def test_suppliers_required_food(self):
+        from ledgr_demo.profiles.bakery import SUPPLIERS as BDL_SUPPLIERS
+        names = [s["supplier_name"] for s in BDL_SUPPLIERS]
+        for required in ["Pistor SA", "Migros Pro", "Boillat Frères Sàrl"]:
+            self.assertIn(required, names)
+
+    def test_suppliers_have_mixed_tva(self):
+        from ledgr_demo.profiles.bakery import SUPPLIERS as BDL_SUPPLIERS
+        rates = {s["tva_rate"] for s in BDL_SUPPLIERS}
+        self.assertIn(2.6, rates)
+        self.assertIn(8.1, rates)
+
+    def test_items_for_pos_caisse(self):
+        from ledgr_demo.profiles.bakery import ITEMS as BDL_ITEMS
+        rates = {i["tva_rate"] for i in BDL_ITEMS}
+        self.assertIn(2.6, rates)
+        self.assertIn(8.1, rates)
+
+
+class TestBdlOperationsGenerator(FrappeTestCase):
+    def test_returns_list(self):
+        from ledgr_demo.profiles.bakery import generate_operations
+        self.assertIsInstance(generate_operations(), list)
+
+    def test_purchase_invoices_high_volume(self):
+        from ledgr_demo.profiles.bakery import generate_operations
+        ops = generate_operations()
+        pi = [o for o in ops if o["doctype"] == "Purchase Invoice"]
+        self.assertGreaterEqual(len(pi), 80)
+
+    def test_journal_entries_pos_caisse(self):
+        from ledgr_demo.profiles.bakery import generate_operations
+        ops = generate_operations()
+        je = [o for o in ops if o["doctype"] == "Journal Entry"]
+        self.assertGreaterEqual(len(je), 50)
+
+    def test_drafts_present(self):
+        from ledgr_demo.profiles.bakery import generate_operations
+        ops = generate_operations()
+        drafts = [o for o in ops if o["doctype"] == "Purchase Invoice" and o.get("submit") is False]
+        self.assertGreaterEqual(len(drafts), 5)

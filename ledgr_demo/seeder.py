@@ -24,6 +24,8 @@ _ACCOUNT_NUMBER_REMAP: dict[str, str] = {
     "6570": "6500",  # Frais d'informatique -> Charges d'administration et d'informatique
     "6640": "6700",  # Charges de représentation -> Autres charges d'exploitation
     "6210": "6200",  # Charges de transport spécifiques -> Charges de véhicules et transports
+    # BDL profile remaps
+    "5740": "5720",  # Charges sociales LAA (BDL label) -> Charges sociales LAA (Käfer/VEKA 5720)
 }
 
 
@@ -152,7 +154,7 @@ def _ensure_group_fixtures() -> None:
         }).insert(ignore_permissions=True)
 
     # UOMs
-    for uom_name in ("Unit", "Hour", "Nos"):
+    for uom_name in ("Unit", "Hour", "Nos", "Kg"):
         if not frappe.db.exists("UOM", uom_name):
             frappe.get_doc({"doctype": "UOM", "uom_name": uom_name}).insert(
                 ignore_permissions=True
@@ -199,6 +201,13 @@ def _ensure_group_fixtures() -> None:
         frappe.get_doc({
             "doctype": "Item Group",
             "item_group_name": "Services",
+            "parent_item_group": "All Item Groups",
+            "is_group": 0,
+        }).insert(ignore_permissions=True)
+    if not frappe.db.exists("Item Group", "Products"):
+        frappe.get_doc({
+            "doctype": "Item Group",
+            "item_group_name": "Products",
             "parent_item_group": "All Item Groups",
             "is_group": 0,
         }).insert(ignore_permissions=True)
