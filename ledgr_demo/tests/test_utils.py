@@ -75,6 +75,13 @@ class TestDateGenerators(FrappeTestCase):
         self.assertEqual(len(dates), 1)
         self.assertEqual(dates[0], datetime.date(2025, 11, 30))
 
+    def test_annual_dates_boundary_filters_pre_period(self):
+        # 2025-04-15 is before PERIOD_START (2025-05-01) → filtered out.
+        # 2026-04-15 is within the period → yielded.
+        dates = list(annual_dates(month=4, day=15))
+        self.assertEqual(len(dates), 1)
+        self.assertEqual(dates[0], datetime.date(2026, 4, 15))
+
 
 class TestRandomize(FrappeTestCase):
     def test_randomize_amount_within_bounds(self):

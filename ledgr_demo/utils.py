@@ -2,6 +2,8 @@
 
 No Frappe imports here — keep this importable in unit tests without DB.
 """
+from __future__ import annotations
+
 import datetime
 import random
 from collections.abc import Iterator
