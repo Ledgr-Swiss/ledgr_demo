@@ -7,6 +7,19 @@ sont à taux normal).
 """
 from __future__ import annotations
 
+import random
+from datetime import date, timedelta
+from typing import Any
+
+from ledgr_demo.utils import (
+    PERIOD_START,
+    annual_dates,
+    monthly_dates,
+    quarterly_dates,
+    randomize_amount,
+    tva_amount,
+)
+
 # Fournisseurs récurrents et sporadiques.
 # default_expense_account = compte Käfer/VEKA utilisé par défaut, suffixé " - FID" à la création
 SUPPLIERS = [
@@ -95,3 +108,144 @@ ITEMS = [
      "default_income_account": "3400 - Prestations de services", "tva_rate": 8.1,
      "default_unit_price": 950.00},
 ]
+
+
+def _gen_purchase_invoices() -> list[dict[str, Any]]:
+    """Generate 12 months of supplier invoices (récurrents + sporadiques)."""
+    ops: list[dict[str, Any]] = []
+
+    for supplier in SUPPLIERS:
+        rec = supplier["recurrence"]
+        if rec == "monthly":
+            dates = list(monthly_dates(day_of_month=15))
+        elif rec == "quarterly":
+            dates = list(quarterly_dates())
+        elif rec == "annual":
+            dates = list(annual_dates(supplier["month"], supplier["day"]))
+        elif rec == "sporadic":
+            occurrences = supplier.get("occurrences", 3)
+            all_days = (PERIOD_START.toordinal(), PERIOD_START.toordinal() + 365)
+            ords = sorted(random.sample(range(all_days[0], all_days[1]), occurrences))
+            dates = [date.fromordinal(o) for o in ords]
+        else:
+            continue
+
+        for posting_date in dates:
+            net = randomize_amount(supplier["base_amount_chf"], supplier.get("variance", 0.1))
+            tva = tva_amount(net, supplier["tva_rate"])
+            ops.append({
+                "doctype": "Purchase Invoice",
+                "posting_date": posting_date.isoformat(),
+                "supplier_name": supplier["supplier_name"],
+                "expense_account": supplier["default_expense_account"],
+                "tva_rate": supplier["tva_rate"],
+                "net_amount": net,
+                "tva_amount": tva,
+                "grand_total": net + tva,
+                "submit": True,
+            })
+
+    return ops
+
+
+def _gen_drafts() -> list[dict[str, Any]]:
+    """10 drafts en attente de catégorisation (inbox de la page Comptabilisation)."""
+    ops: list[dict[str, Any]] = []
+    sporadic_suppliers = [s for s in SUPPLIERS if s["recurrence"] == "sporadic"]
+    # Choose 10 dates in the last 3 months of the period to simulate "récents"
+    three_months_ago = PERIOD_START + timedelta(days=275)  # ~ end-of-period - 3 months
+    candidate_days = [(three_months_ago + timedelta(days=i)).toordinal() for i in range(90)]
+    selected_ords = sorted(random.sample(candidate_days, 10))
+    for i, ord_ in enumerate(selected_ords):
+        supplier = sporadic_suppliers[i % len(sporadic_suppliers)]
+        net = randomize_amount(supplier["base_amount_chf"], supplier.get("variance", 0.2))
+        tva = tva_amount(net, supplier["tva_rate"])
+        ops.append({
+            "doctype": "Purchase Invoice",
+            "posting_date": date.fromordinal(ord_).isoformat(),
+            "supplier_name": supplier["supplier_name"],
+            "expense_account": supplier["default_expense_account"],
+            "tva_rate": supplier["tva_rate"],
+            "net_amount": net,
+            "tva_amount": tva,
+            "grand_total": net + tva,
+            "submit": False,  # draft
+        })
+    return ops
+
+
+def _gen_sales_invoices() -> list[dict[str, Any]]:
+    """30+ Sales Invoices — services fiduciaires aux mandats clients."""
+    ops: list[dict[str, Any]] = []
+
+    for customer in CUSTOMERS:
+        for q_date in list(quarterly_dates())[:3]:
+            item = random.choice(ITEMS)
+            qty = random.choice([1, 2, 3])
+            unit_price = randomize_amount(item["default_unit_price"], 0.1)
+            net = qty * unit_price
+            tva = tva_amount(net, item["tva_rate"])
+            ops.append({
+                "doctype": "Sales Invoice",
+                "posting_date": q_date.isoformat(),
+                "customer_name": customer["customer_name"],
+                "items": [{
+                    "item_code": item["item_code"],
+                    "qty": qty,
+                    "rate": unit_price,
+                    "income_account": item["default_income_account"],
+                }],
+                "tva_rate": item["tva_rate"],
+                "net_amount": net,
+                "tva_amount": tva,
+                "grand_total": net + tva,
+                "submit": True,
+            })
+
+    return ops
+
+
+def _gen_payroll_journal_entries() -> list[dict[str, Any]]:
+    """12 JE de paie mensuelle agrégée (3 employés FID).
+
+    Pattern :
+    - DR 5000 Charges de personnel : ~CHF 18'000 (3 employés × ~6k brut)
+    - DR 5700 Charges sociales AVS : ~CHF 1'152 (6.4%)
+    - DR 5710 Charges sociales LPP : ~CHF 1'440 (8%)
+    - CR 1020 Banque : net versé
+    - CR 2270 Passifs sociaux AVS/AC/APG : employer + employee share
+    - CR 2271 Passifs sociaux LPP : employer + employee share
+    """
+    ops: list[dict[str, Any]] = []
+    for posting_date in monthly_dates(day_of_month=25):
+        gross = randomize_amount(18000.00, 0.05)
+        ahv = round(gross * 0.064, 2)
+        lpp = round(gross * 0.08, 2)
+        ahv_total = round(ahv * 2, 2)   # employer + employee
+        lpp_total = round(lpp * 2, 2)
+        net_paid = round(gross - ahv - lpp, 2)
+
+        ops.append({
+            "doctype": "Journal Entry",
+            "posting_date": posting_date.isoformat(),
+            "title": f"Paie {posting_date.strftime('%B %Y')}",
+            "lines": [
+                {"account": "5000 - Charges de personnel", "debit": gross, "credit": 0},
+                {"account": "5700 - Charges sociales AVS/AC/APG", "debit": ahv, "credit": 0},
+                {"account": "5710 - Charges sociales LPP", "debit": lpp, "credit": 0},
+                {"account": "1020 - Banque", "debit": 0, "credit": net_paid},
+                {"account": "2270 - Passifs sociaux AVS/AC/APG", "debit": 0, "credit": ahv_total},
+                {"account": "2271 - Passifs sociaux LPP", "debit": 0, "credit": lpp_total},
+            ],
+        })
+    return ops
+
+
+def generate_operations() -> list[dict[str, Any]]:
+    """Generate the full 12-month operation set for the FID profile."""
+    ops: list[dict[str, Any]] = []
+    ops.extend(_gen_purchase_invoices())
+    ops.extend(_gen_drafts())
+    ops.extend(_gen_sales_invoices())
+    ops.extend(_gen_payroll_journal_entries())
+    return ops
