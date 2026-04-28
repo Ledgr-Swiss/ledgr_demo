@@ -16,6 +16,13 @@ class TestSeederFullRun(FrappeTestCase):
         run_seed()
         frappe.db.commit()
 
+    @classmethod
+    def tearDownClass(cls):
+        from ledgr_demo.wipe import run_wipe
+        run_wipe()
+        frappe.db.commit()
+        super().tearDownClass()
+
     def test_companies_created(self):
         self.assertTrue(frappe.db.exists("Company", "Fiduciaire Demo SA"))
         self.assertTrue(frappe.db.exists("Company", "Boulangerie du Lac SA"))
@@ -75,6 +82,13 @@ class TestSeederBdl(FrappeTestCase):
         run_seed()
         frappe.db.commit()
 
+    @classmethod
+    def tearDownClass(cls):
+        from ledgr_demo.wipe import run_wipe
+        run_wipe()
+        frappe.db.commit()
+        super().tearDownClass()
+
     def test_bdl_company_exists(self):
         self.assertTrue(frappe.db.exists("Company", "Boulangerie du Lac SA"))
 
@@ -103,6 +117,13 @@ class TestSeederNoRemap(FrappeTestCase):
         super().setUpClass()
         run_seed()
         frappe.db.commit()
+
+    @classmethod
+    def tearDownClass(cls):
+        from ledgr_demo.wipe import run_wipe
+        run_wipe()
+        frappe.db.commit()
+        super().tearDownClass()
 
     def test_no_account_remap_needed(self):
         """Le seeder ne définit plus _ACCOUNT_NUMBER_REMAP non-vide."""

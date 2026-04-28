@@ -16,6 +16,11 @@ COMPANIES_TO_WIPE = [
 
 # Doctypes liés à une company, ordre de suppression (cascade manuelle).
 # Note: "Bin" n'a pas de champ company (lié via warehouse) — omis car non utilisé en demo.
+# Ordre :
+# 1. Documents transactionnels — vidés en premier pour libérer GL Entries
+# 2. Mappings qui réfèrent les comptes — vidés AVANT _delete_accounts, sinon
+#    Frappe.delete_doc("Account") échoue silencieusement à cause des FK et
+#    laisse des comptes orphelins qui bloquent le re-seed suivant.
 LINKED_DOCTYPES_BY_COMPANY = [
     "Payment Entry",
     "Sales Invoice",
@@ -23,9 +28,6 @@ LINKED_DOCTYPES_BY_COMPANY = [
     "Journal Entry",
     "GL Entry",
     "Stock Ledger Entry",
-]
-
-PURGE_DOCTYPES_BY_COMPANY = [
     "Salary Component Account",
     "Sales Taxes and Charges Template",
     "Purchase Taxes and Charges Template",
@@ -113,23 +115,33 @@ def _delete_company(company_name: str) -> bool:
         raise
 
 
-def run_wipe(purge: bool = False) -> dict:
-    """Wipe all demo companies. Returns counts per doctype.
+def run_wipe() -> dict:
+    """Wipe all demo companies and their linked records. Returns counts per doctype.
 
-    Args:
-        purge: si True, supprime aussi les mappings (Salary Component Account, Tax Templates,
-            Mode of Payment Account, Cost Center, Warehouse) AVANT la Company elle-même.
-            Utile pour repartir d'un état complètement vierge après un changement de fixture.
+    Toujours thorough : supprime mappings (Tax Templates, Salary Component Account,
+    Mode of Payment Account, Cost Center, Warehouse) avant les comptes, pour éviter
+    les comptes orphelins qui bloquent le re-seed suivant.
+
+    Robuste contre les orphelins : process une Company même si son doc Frappe a
+    déjà été supprimé tant que des Accounts/GL Entries traînent encore. Fallback
+    SQL DELETE pour GL Entry et Account quand la cascade Frappe laisse des résidus
+    (ERPNext.Account.on_trash refuse la suppression d'un compte avec GL Entries
+    cancellées même via delete_doc force=True).
     """
     logger = frappe.logger("ledgr_demo")
     stats: dict = {"companies_deleted": 0, "linked_deleted": {}, "accounts_deleted": 0}
 
     for company in COMPANIES_TO_WIPE:
-        if not frappe.db.exists("Company", company):
-            logger.info(f"wipe: {company} does not exist, skipping")
+        company_exists = bool(frappe.db.exists("Company", company))
+        has_orphans = bool(
+            frappe.db.exists("Account", {"company": company})
+            or frappe.db.exists("GL Entry", {"company": company})
+        )
+        if not company_exists and not has_orphans:
+            logger.info(f"wipe: {company} absent + no orphans, skipping")
             continue
 
-        logger.info(f"wipe: starting on {company} (purge={purge})")
+        logger.info(f"wipe: cleaning {company} (exists={company_exists}, orphans={has_orphans})")
 
         for doctype in LINKED_DOCTYPES_BY_COMPANY:
             count = _delete_linked(doctype, company)
@@ -137,17 +149,33 @@ def run_wipe(purge: bool = False) -> dict:
                 stats["linked_deleted"].setdefault(doctype, 0)
                 stats["linked_deleted"][doctype] += count
 
-        if purge:
-            for doctype in PURGE_DOCTYPES_BY_COMPANY:
-                count = _delete_linked(doctype, company)
-                if count:
-                    stats["linked_deleted"].setdefault(doctype, 0)
-                    stats["linked_deleted"][doctype] += count
+        # SQL fallback : delete_doc("GL Entry") laisse parfois les entries cancellées
+        # (docstatus=2). Force-delete via SQL pour libérer les comptes ensuite.
+        residue_gl = frappe.db.sql(
+            "SELECT COUNT(*) FROM `tabGL Entry` WHERE company = %s", (company,)
+        )[0][0]
+        if residue_gl:
+            frappe.db.sql("DELETE FROM `tabGL Entry` WHERE company = %s", (company,))
+            logger.info(f"wipe: SQL-deleted {residue_gl} residual GL Entries for {company}")
+            stats["linked_deleted"].setdefault("GL Entry", 0)
+            stats["linked_deleted"]["GL Entry"] += residue_gl
 
         accounts_count = _delete_accounts(company)
         stats["accounts_deleted"] += accounts_count
 
-        if _delete_company(company):
+        # SQL fallback : Account.on_trash peut encore refuser après le retrait des
+        # GL Entries (e.g. tabBudget Account qui ref un compte). Cleanup final.
+        residue_acc = frappe.db.sql_list(
+            "SELECT name FROM `tabAccount` WHERE company = %s", (company,)
+        )
+        if residue_acc:
+            frappe.db.sql("DELETE FROM `tabAccount` WHERE company = %s", (company,))
+            logger.info(
+                f"wipe: SQL-deleted {len(residue_acc)} residual Accounts for {company}: {residue_acc}"
+            )
+            stats["accounts_deleted"] += len(residue_acc)
+
+        if company_exists and _delete_company(company):
             stats["companies_deleted"] += 1
 
         logger.info(f"wipe: completed for {company}")
