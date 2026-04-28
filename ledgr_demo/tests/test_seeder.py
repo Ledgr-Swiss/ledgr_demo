@@ -93,3 +93,43 @@ class TestSeederBdl(FrappeTestCase):
             ("Boulangerie du Lac SA",), as_dict=True,
         )
         self.assertAlmostEqual(float(result[0]["d"]), float(result[0]["c"]), places=2)
+
+
+class TestSeederNoRemap(FrappeTestCase):
+    """Vérifie que le seeder n'a plus besoin de _ACCOUNT_NUMBER_REMAP."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        run_seed()
+        frappe.db.commit()
+
+    def test_no_account_remap_needed(self):
+        """Le seeder ne définit plus _ACCOUNT_NUMBER_REMAP non-vide."""
+        from ledgr_demo import seeder
+        remap = getattr(seeder, "_ACCOUNT_NUMBER_REMAP", None)
+        self.assertTrue(
+            remap is None or remap == {},
+            f"_ACCOUNT_NUMBER_REMAP devrait être supprimé/vidé, vaut {remap}",
+        )
+
+    def test_restaurant_la_pinte_goes_to_6640(self):
+        """Restaurant La Pinte (FID) impute sur 6640, pas 6700."""
+        invoices = frappe.get_all(
+            "Purchase Invoice",
+            filters={
+                "company": "Fiduciaire Demo SA",
+                "supplier": "Restaurant La Pinte",
+                "docstatus": 1,
+            },
+            pluck="name",
+            limit_page_length=5,
+        )
+        self.assertGreater(len(invoices), 0, "Aucune Purchase Invoice Restaurant La Pinte")
+        first = frappe.get_doc("Purchase Invoice", invoices[0])
+        expense_account = first.items[0].expense_account
+        account_number = frappe.db.get_value("Account", expense_account, "account_number")
+        self.assertEqual(
+            account_number, "6640",
+            f"Restaurant La Pinte doit aller sur 6640, va sur {account_number}",
+        )

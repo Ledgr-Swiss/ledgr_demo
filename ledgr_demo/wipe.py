@@ -25,6 +25,15 @@ LINKED_DOCTYPES_BY_COMPANY = [
     "Stock Ledger Entry",
 ]
 
+PURGE_DOCTYPES_BY_COMPANY = [
+    "Salary Component Account",
+    "Sales Taxes and Charges Template",
+    "Purchase Taxes and Charges Template",
+    "Mode of Payment Account",
+    "Cost Center",
+    "Warehouse",
+]
+
 
 def _delete_linked(doctype: str, company: str) -> int:
     """Hard delete all docs of `doctype` for a given company. Returns count."""
@@ -104,8 +113,14 @@ def _delete_company(company_name: str) -> bool:
         raise
 
 
-def run_wipe() -> dict:
-    """Wipe all demo companies. Returns counts per doctype."""
+def run_wipe(purge: bool = False) -> dict:
+    """Wipe all demo companies. Returns counts per doctype.
+
+    Args:
+        purge: si True, supprime aussi les mappings (Salary Component Account, Tax Templates,
+            Mode of Payment Account, Cost Center, Warehouse) AVANT la Company elle-même.
+            Utile pour repartir d'un état complètement vierge après un changement de fixture.
+    """
     logger = frappe.logger("ledgr_demo")
     stats: dict = {"companies_deleted": 0, "linked_deleted": {}, "accounts_deleted": 0}
 
@@ -114,13 +129,20 @@ def run_wipe() -> dict:
             logger.info(f"wipe: {company} does not exist, skipping")
             continue
 
-        logger.info(f"wipe: starting on {company}")
+        logger.info(f"wipe: starting on {company} (purge={purge})")
 
         for doctype in LINKED_DOCTYPES_BY_COMPANY:
             count = _delete_linked(doctype, company)
             if count:
                 stats["linked_deleted"].setdefault(doctype, 0)
                 stats["linked_deleted"][doctype] += count
+
+        if purge:
+            for doctype in PURGE_DOCTYPES_BY_COMPANY:
+                count = _delete_linked(doctype, company)
+                if count:
+                    stats["linked_deleted"].setdefault(doctype, 0)
+                    stats["linked_deleted"][doctype] += count
 
         accounts_count = _delete_accounts(company)
         stats["accounts_deleted"] += accounts_count

@@ -25,17 +25,17 @@ from ledgr_demo.utils import (
 
 SUPPLIERS = [
     # Récurrents très fréquents (matières premières — TVA 2.6% denrées)
-    {"supplier_name": "Pistor SA", "default_expense_account": "4200 - Achats de marchandises commerciales",
+    {"supplier_name": "Pistor SA", "default_expense_account": "4200 - Charges de marchandises",
      "tva_rate": 2.6, "recurrence": "biweekly", "base_amount_chf": 1200.00, "variance": 0.25},
-    {"supplier_name": "Boillat Frères Sàrl", "default_expense_account": "4200 - Achats de marchandises commerciales",
+    {"supplier_name": "Boillat Frères Sàrl", "default_expense_account": "4200 - Charges de marchandises",
      "tva_rate": 2.6, "recurrence": "weekly", "base_amount_chf": 380.00, "variance": 0.20},
-    {"supplier_name": "Migros Pro", "default_expense_account": "4200 - Achats de marchandises commerciales",
+    {"supplier_name": "Migros Pro", "default_expense_account": "4200 - Charges de marchandises",
      "tva_rate": 2.6, "recurrence": "weekly", "base_amount_chf": 220.00, "variance": 0.30},
 
     # Récurrents mensuels
-    {"supplier_name": "Romande Energie SA", "default_expense_account": "6500 - Énergie de production",
+    {"supplier_name": "Romande Energie SA", "default_expense_account": "6400 - Charges d'énergie et évacuation des déchets",
      "tva_rate": 8.1, "recurrence": "monthly", "base_amount_chf": 800.00, "variance": 0.20},
-    {"supplier_name": "Service de l'Eau Yverdon", "default_expense_account": "6500 - Énergie de production",
+    {"supplier_name": "Service de l'Eau Yverdon", "default_expense_account": "6400 - Charges d'énergie et évacuation des déchets",
      "tva_rate": 8.1, "recurrence": "monthly", "base_amount_chf": 120.00, "variance": 0.10},
     {"supplier_name": "Gérance Bovay SA", "default_expense_account": "6000 - Charges de locaux",
      "tva_rate": 0.0, "recurrence": "monthly", "base_amount_chf": 3200.00, "variance": 0.0},
@@ -43,25 +43,25 @@ SUPPLIERS = [
      "tva_rate": 8.1, "recurrence": "monthly", "base_amount_chf": 180.00, "variance": 0.05},
 
     # Récurrents trimestriels
-    {"supplier_name": "Caisse AVS Vaud", "default_expense_account": "5700 - Charges sociales AVS/AC/APG",
+    {"supplier_name": "Caisse AVS Vaud", "default_expense_account": "5700 - Charges sociales AVS/AI/APG/AC",
      "tva_rate": 0.0, "recurrence": "quarterly", "base_amount_chf": 3000.00, "variance": 0.10},
 
     # Récurrents annuels
     {"supplier_name": "SUVA", "default_expense_account": "5740 - Charges sociales LAA",
      "tva_rate": 0.0, "recurrence": "annual", "base_amount_chf": 4500.00, "variance": 0.0,
      "month": 1, "day": 31},
-    {"supplier_name": "Lucerne Compagnie d'Assurance", "default_expense_account": "6300 - Assurance choses",
+    {"supplier_name": "Lucerne Compagnie d'Assurance", "default_expense_account": "6300 - Assurances choses, droits, taxes, autorisations",
      "tva_rate": 0.0, "recurrence": "annual", "base_amount_chf": 2200.00, "variance": 0.0,
      "month": 5, "day": 15},
 
     # Sporadiques
-    {"supplier_name": "Tornos Bakery Equipment", "default_expense_account": "6100 - Entretien et réparation",
+    {"supplier_name": "Tornos Bakery Equipment", "default_expense_account": "6570 - Frais d'informatique, leasing comp.",
      "tva_rate": 8.1, "recurrence": "sporadic", "base_amount_chf": 1500.00, "variance": 0.40, "occurrences": 3},
-    {"supplier_name": "Rentokil Initial", "default_expense_account": "6100 - Entretien et réparation",
+    {"supplier_name": "Rentokil Initial", "default_expense_account": "6100 - Entretien, réparations, remplacements",
      "tva_rate": 8.1, "recurrence": "sporadic", "base_amount_chf": 280.00, "variance": 0.10, "occurrences": 4},
-    {"supplier_name": "Yverdon Toilettes", "default_expense_account": "6100 - Entretien et réparation",
+    {"supplier_name": "Yverdon Toilettes", "default_expense_account": "6100 - Entretien, réparations, remplacements",
      "tva_rate": 8.1, "recurrence": "sporadic", "base_amount_chf": 95.00, "variance": 0.10, "occurrences": 6},
-    {"supplier_name": "Coop City Yverdon", "default_expense_account": "6500 - Énergie de production",
+    {"supplier_name": "Coop City Yverdon", "default_expense_account": "6700 - Autres charges d'exploitation",
      "tva_rate": 8.1, "recurrence": "sporadic", "base_amount_chf": 130.00, "variance": 0.30, "occurrences": 4},
 ]
 
@@ -79,19 +79,19 @@ CUSTOMERS = [
 ITEMS = [
     {"item_code": "BDL-PAIN-COLLECT", "item_name": "Pain — livraison collectivité",
      "item_group": "Products", "is_stock_item": 0, "stock_uom": "Kg",
-     "default_income_account": "3000 - Production", "tva_rate": 2.6,
+     "default_income_account": "3000 - Produits résultant de ventes et de prestations de services", "tva_rate": 2.6,
      "default_unit_price": 8.50},
     {"item_code": "BDL-VIENN-COLLECT", "item_name": "Viennoiseries — assortiment",
      "item_group": "Products", "is_stock_item": 0, "stock_uom": "Unit",
-     "default_income_account": "3000 - Production", "tva_rate": 2.6,
+     "default_income_account": "3000 - Produits résultant de ventes et de prestations de services", "tva_rate": 2.6,
      "default_unit_price": 1.80},
     {"item_code": "BDL-BUFFET", "item_name": "Buffet événement — par personne",
      "item_group": "Services", "is_stock_item": 0, "stock_uom": "Unit",
-     "default_income_account": "3400 - Prestations de services", "tva_rate": 8.1,
+     "default_income_account": "3400 - Produits nets résultant de prestations de services", "tva_rate": 8.1,
      "default_unit_price": 35.00},
     {"item_code": "BDL-CAFE-LIVR", "item_name": "Café livré — kg",
      "item_group": "Products", "is_stock_item": 0, "stock_uom": "Kg",
-     "default_income_account": "3000 - Production", "tva_rate": 8.1,
+     "default_income_account": "3000 - Produits résultant de ventes et de prestations de services", "tva_rate": 8.1,
      "default_unit_price": 28.00},
 ]
 
@@ -220,8 +220,8 @@ def _gen_pos_caisse_journal_entries() -> list[dict[str, Any]]:
             "title": f"Caisse semaine {week_date.isocalendar()[1]} {week_date.year}",
             "lines": [
                 {"account": "1000 - Caisse", "debit": total_caisse, "credit": 0},
-                {"account": "3000 - Production", "debit": 0, "credit": net_food},
-                {"account": "3400 - Prestations de services", "debit": 0, "credit": net_serv},
+                {"account": "3000 - Produits résultant de ventes et de prestations de services", "debit": 0, "credit": net_food},
+                {"account": "3400 - Produits nets résultant de prestations de services", "debit": 0, "credit": net_serv},
                 {"account": "2200 - TVA due", "debit": 0, "credit": total_tva},
             ],
         })
@@ -244,8 +244,8 @@ def _gen_payroll_journal_entries() -> list[dict[str, Any]]:
             "posting_date": posting_date.isoformat(),
             "title": f"Paie {posting_date.strftime('%B %Y')}",
             "lines": [
-                {"account": "5000 - Charges de personnel", "debit": gross, "credit": 0},
-                {"account": "5700 - Charges sociales AVS/AC/APG", "debit": ahv, "credit": 0},
+                {"account": "5000 - Salaires", "debit": gross, "credit": 0},
+                {"account": "5700 - Charges sociales AVS/AI/APG/AC", "debit": ahv, "credit": 0},
                 {"account": "5710 - Charges sociales LPP", "debit": lpp, "credit": 0},
                 {"account": "1020 - Banque", "debit": 0, "credit": net_paid},
                 {"account": "2270 - Passifs sociaux AVS/AC/APG", "debit": 0, "credit": ahv_total},
