@@ -320,6 +320,23 @@ def _materialize_purchase_invoice(op: dict, company: str) -> None:
     creditors = _resolve_account("2000 - Dettes résultant d'achats et de prestations de services", company)
     cost_center = _get_cost_center(company)
 
+    taxes = []
+    tva_rate = op.get("tva_rate", 0)
+    if tva_rate > 0:
+        tva_account = _resolve_account(
+            "1170 - Impôt préalable TVA sur matériel, marchandises et prestations de services",
+            company,
+        )
+        taxes = [{
+            "charge_type": "On Net Total",
+            "account_head": tva_account,
+            "description": f"TVA {tva_rate}%",
+            "rate": tva_rate,
+            "category": "Total",
+            "add_deduct_tax": "Add",
+            "cost_center": cost_center,
+        }]
+
     # Use in_import flag to bypass date validation for historical posting dates.
     # The posting_date field default is "today" which would reject past dates.
     prev_in_import = frappe.flags.in_import
@@ -344,6 +361,7 @@ def _materialize_purchase_invoice(op: dict, company: str) -> None:
                 "stock_uom": "Unit",
                 "conversion_factor": 1,
             }],
+            "taxes": taxes,
         })
         pi_doc.insert(ignore_permissions=True)
         if op.get("submit"):
@@ -366,6 +384,20 @@ def _materialize_sales_invoice(op: dict, company: str) -> None:
             "cost_center": cost_center,
         })
 
+    taxes = []
+    tva_rate = op.get("tva_rate", 0)
+    if tva_rate > 0:
+        tva_account = _resolve_account("2200 - TVA due", company)
+        taxes = [{
+            "charge_type": "On Net Total",
+            "account_head": tva_account,
+            "description": f"TVA {tva_rate}%",
+            "rate": tva_rate,
+            "category": "Total",
+            "add_deduct_tax": "Add",
+            "cost_center": cost_center,
+        }]
+
     prev_in_import = frappe.flags.in_import
     frappe.flags.in_import = True
     try:
@@ -381,6 +413,7 @@ def _materialize_sales_invoice(op: dict, company: str) -> None:
             "price_list_currency": "CHF",
             "plc_conversion_rate": 1,
             "items": items,
+            "taxes": taxes,
         })
         si_doc.insert(ignore_permissions=True)
         if op.get("submit"):
