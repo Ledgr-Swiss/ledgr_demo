@@ -95,15 +95,34 @@ def _configure_company(company_name: str) -> None:
             changed = True
 
     if not doc.round_off_account:
-        # Use 6700 (Autres charges d'exploitation) as round-off account
-        round_off = frappe.db.get_all(
+        # Create a dedicated 6960 'Différences d'arrondi' account so micro-rounding
+        # entries don't pollute 6700 (Autres charges d'exploitation), which is a
+        # real expense category visible in the P&L.
+        parent_group = frappe.db.get_value(
             "Account",
-            filters={"company": company_name, "account_number": "6700"},
-            pluck="name",
-            limit_page_length=1,
+            {"company": company_name, "account_name": "6 Autres charges d'exploitation", "is_group": 1},
+            "name",
         )
-        if round_off:
-            doc.round_off_account = round_off[0]
+        round_off_name = frappe.db.get_value(
+            "Account",
+            {"company": company_name, "account_number": "6960"},
+            "name",
+        )
+        if not round_off_name and parent_group:
+            round_off_doc = frappe.get_doc({
+                "doctype": "Account",
+                "company": company_name,
+                "account_name": "Différences d'arrondi",
+                "account_number": "6960",
+                "parent_account": parent_group,
+                "is_group": 0,
+                "root_type": "Expense",
+                "account_type": "Round Off",
+            })
+            round_off_doc.insert(ignore_permissions=True)
+            round_off_name = round_off_doc.name
+        if round_off_name:
+            doc.round_off_account = round_off_name
             changed = True
 
     # Resolve the main (non-group) cost center for this company
@@ -350,6 +369,7 @@ def _materialize_purchase_invoice(op: dict, company: str) -> None:
             "due_date": op["posting_date"],
             "credit_to": creditors,
             "cost_center": cost_center,
+            "disable_rounded_total": 1,
             "items": [{
                 "item_name": op["supplier_name"],
                 "description": f"Facture {op['supplier_name']} {op['posting_date']}",
@@ -412,6 +432,7 @@ def _materialize_sales_invoice(op: dict, company: str) -> None:
             "selling_price_list": "Standard Selling",
             "price_list_currency": "CHF",
             "plc_conversion_rate": 1,
+            "disable_rounded_total": 1,
             "items": items,
             "taxes": taxes,
         })
