@@ -17,17 +17,6 @@ COMPANIES = [
      "default_currency": "CHF", "chart_of_accounts": "Standard"},
 ]
 
-# Käfer/VEKA chart does not have all sub-accounts referenced in the profile.
-# This remap redirects missing account numbers to the nearest parent account.
-_ACCOUNT_NUMBER_REMAP: dict[str, str] = {
-    "6510": "6500",  # Frais de télécommunication -> Charges d'administration et d'informatique
-    "6570": "6500",  # Frais d'informatique -> Charges d'administration et d'informatique
-    "6640": "6700",  # Charges de représentation -> Autres charges d'exploitation
-    "6210": "6200",  # Charges de transport spécifiques -> Charges de véhicules et transports
-    # BDL profile remaps
-    "5740": "5720",  # Charges sociales LAA (BDL label) -> Charges sociales LAA (Käfer/VEKA 5720)
-}
-
 
 def _create_company(spec: dict) -> str:
     if frappe.db.exists("Company", spec["name"]):
@@ -291,20 +280,15 @@ def _resolve_account(account_label: str, company: str) -> str:
 
     Strategy:
     1. Try exact name "{account_label} - {abbr}".
-    2. Extract account_number from the label prefix, check remap table,
-       then look up by account_number in DB.
+    2. Extract account_number from the label prefix and look up by number.
     """
     abbr = frappe.db.get_value("Company", company, "abbr")
     full = f"{account_label} - {abbr}"
     if frappe.db.exists("Account", full):
         return full
 
-    # Extract number prefix ("6500 - ..." -> "6500")
     parts = account_label.split(" - ", 1)
     number = parts[0].strip()
-
-    # Apply remap if number is missing in this chart
-    number = _ACCOUNT_NUMBER_REMAP.get(number, number)
 
     names = frappe.db.get_all(
         "Account",
